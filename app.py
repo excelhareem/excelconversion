@@ -9,15 +9,8 @@ def convert_purchase_to_sale(input_file, output_file):
     n = len(df)
 
     # 🔹 Seller columns (old Buyer values copy)
-    if "Buyer Registration No." in df.columns:
-        df["Seller Registration No."] = df["Buyer Registration No."]
-    else:
-        df["Seller Registration No."] = ""
-
-    if "Buyer Name" in df.columns:
-        df["Seller Name"] = df["Buyer Name"]
-    else:
-        df["Seller Name"] = ""
+    df["Seller Registration No."] = df["Buyer Registration No."].astype(str)
+    df["Seller Name"] = df["Buyer Name"]
 
     # 🔹 Buyer columns (new fixed values)
     df["Buyer Registration No."] = [
@@ -25,7 +18,10 @@ def convert_purchase_to_sale(input_file, output_file):
     ]
     df["Buyer Name"] = "Retail Customer"
 
-    # 🔹 Invoice Type fixed
+    # 🔹 Taxpayer Type fix
+    df["Taxpayer Type"] = "Unregistered"
+
+    # 🔹 Invoice Type fix
     df["Invoice Type"] = "Sale Invoice"
 
     # 🔹 Invoice Ref No. (date + 3 running digits)
@@ -33,6 +29,27 @@ def convert_purchase_to_sale(input_file, output_file):
 
     # 🔹 Invoice No. (ZS333 + running digits)
     df["Invoice No."] = [f"ZS333{str(i).zfill(3)}" for i in range(1, n + 1)]
+
+    # 🔹 HS Code keep exact (convert to string to avoid float like 0.0)
+    if "HS Code" in df.columns:
+        df["HS Code"] = df["HS Code"].astype(str)
+
+    # 🔹 Adjust Value of Sales Excluding Sales Tax if Rate = 0 or Exempt
+    if "Rate" in df.columns and "Value of Sales Excluding Sales Tax" in df.columns:
+        new_values = []
+        for i, row in df.iterrows():
+            rate = str(row["Rate"]).strip().lower()
+            value = row["Value of Sales Excluding Sales Tax"]
+
+            if rate == "0" or rate == "exempt" or rate == "0.0":
+                try:
+                    increased = int(round(float(value) * 1.05, 0))  # 5% increase, no decimals
+                    new_values.append(increased)
+                except:
+                    new_values.append(value)  # fallback if not numeric
+            else:
+                new_values.append(value)
+        df["Value of Sales Excluding Sales Tax"] = new_values
 
     # 🔹 Define required output columns
     required_columns = [
