@@ -1,30 +1,58 @@
 import streamlit as st
 import pandas as pd
-import random
 
 st.title("📑 Purchase → Sale Invoice Converter")
 
-# 🔹 Conversion function (directly inside app.py, no external files needed)
 def convert_purchase_to_sale(input_file, output_file):
-    # Load the Excel file
+    # Load Excel
     df = pd.read_excel(input_file)
 
-    # ✅ Map Seller → Buyer
-    if "Seller Registration No." in df.columns:
-        df["Buyer Registration No."] = df["Seller Registration No."]
-    if "Seller Name" in df.columns:
-        df["Buyer Name"] = df["Seller Name"]
+    # Number of rows
+    n = len(df)
 
-    # ✅ Force Buyer Name & Buyer Registration format
-    df["Buyer Name"] = "Retail Customer"
+    # 🔹 Seller columns (old Buyer values copy)
+    if "Buyer Registration No." in df.columns:
+        df["Seller Registration No."] = df["Buyer Registration No."]
+    else:
+        df["Seller Registration No."] = ""
+
+    if "Buyer Name" in df.columns:
+        df["Seller Name"] = df["Buyer Name"]
+    else:
+        df["Seller Name"] = ""
+
+    # 🔹 Buyer columns (new fixed values)
     df["Buyer Registration No."] = [
-        f"11223387347{str(i).zfill(2)}" for i in range(1, len(df) + 1)
+        f"1122456437{str(i).zfill(3)}" for i in range(1, n + 1)
+    ]
+    df["Buyer Name"] = "Retail Customer"
+
+    # 🔹 Force Invoice Type
+    df["Invoice Type"] = "Sale Invoice"
+
+    # 🔹 Define required output column order
+    required_columns = [
+        "Invoice Ref No.", "Status", "Source Authority", "Seller Return Status",
+        "Invoice No.", "Invoice Type", "Invoice Date", "Buyer Registration No.",
+        "Buyer Name", "Taxpayer Type", "Seller Registration No.", "Seller Name",
+        "Sale Type", "Sale Origination Province of Supplier", "Quantity",
+        "Product Description", "HS Code", "HSCode Description", "Rate", "UoM",
+        "Value of Sales Excluding Sales Tax", "Reason", "Reason Remarks",
+        "Sales Tax/ FED in ST Mode", "Extra Tax", "ST Withheld at Source",
+        "SRO No. / Schedule No.", "Item Sr. No.", "Further Tax",
+        "Fixed / notified value or Retail Price / Toll Charges",
+        "Total Value of Sales."
     ]
 
-    # ✅ Force Taxpayer Type to Unregistered
-    df["Taxpayer Type"] = "Unregistered"
+    # 🔹 Make sure all required columns exist
+    for col in required_columns:
+        if col not in df.columns:
+            df[col] = ""
 
-    # Save as new Excel file
+    # 🔹 Reorder columns & drop all others
+    df = df[required_columns]
+
+    # Save final result
     df.to_excel(output_file, index=False)
 
 # 🔹 Streamlit UI
