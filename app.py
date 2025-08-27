@@ -6,8 +6,6 @@ st.title("📑 Purchase → Sale Invoice Converter")
 def convert_purchase_to_sale(input_file, output_file):
     # Load Excel
     df = pd.read_excel(input_file)
-
-    # Number of rows
     n = len(df)
 
     # 🔹 Seller columns (old Buyer values copy)
@@ -27,16 +25,22 @@ def convert_purchase_to_sale(input_file, output_file):
     ]
     df["Buyer Name"] = "Retail Customer"
 
-    # 🔹 Force Invoice Type
+    # 🔹 Invoice Type fixed
     df["Invoice Type"] = "Sale Invoice"
 
-    # 🔹 Define required output column order
+    # 🔹 Invoice Ref No. (date + 3 running digits)
+    df["Invoice Ref No."] = [f"17022025{str(i).zfill(3)}" for i in range(1, n + 1)]
+
+    # 🔹 Invoice No. (ZS333 + running digits)
+    df["Invoice No."] = [f"ZS333{str(i).zfill(3)}" for i in range(1, n + 1)]
+
+    # 🔹 Define required output columns
     required_columns = [
-        "Invoice Ref No.", "Status", "Source Authority", "Seller Return Status",
-        "Invoice No.", "Invoice Type", "Invoice Date", "Buyer Registration No.",
-        "Buyer Name", "Taxpayer Type", "Seller Registration No.", "Seller Name",
-        "Sale Type", "Sale Origination Province of Supplier", "Quantity",
-        "Product Description", "HS Code", "HSCode Description", "Rate", "UoM",
+        "Invoice Ref No.", "Invoice No.", "Invoice Type", "Invoice Date",
+        "Buyer Registration No.", "Buyer Name", "Taxpayer Type",
+        "Seller Registration No.", "Seller Name", "Sale Type",
+        "Sale Origination Province of Supplier", "Quantity", "Product Description",
+        "HS Code", "HSCode Description", "Rate", "UoM",
         "Value of Sales Excluding Sales Tax", "Reason", "Reason Remarks",
         "Sales Tax/ FED in ST Mode", "Extra Tax", "ST Withheld at Source",
         "SRO No. / Schedule No.", "Item Sr. No.", "Further Tax",
@@ -49,10 +53,10 @@ def convert_purchase_to_sale(input_file, output_file):
         if col not in df.columns:
             df[col] = ""
 
-    # 🔹 Reorder columns & drop all others
+    # 🔹 Reorder & drop unwanted
     df = df[required_columns]
 
-    # Save final result
+    # Save result
     df.to_excel(output_file, index=False)
 
 # 🔹 Streamlit UI
