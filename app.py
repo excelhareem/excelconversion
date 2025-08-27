@@ -55,7 +55,7 @@ if uploaded_file:
     if "HS Code" in df.columns:
         df["HS Code"] = df["HS Code"].astype(str)
 
-    # 8. Adjust Value of Sales Excluding Sales Tax
+    # 8. Adjust Value of Sales Excluding Sales Tax (Exempt + 0% both covered)
     def adjust_value(row):
         rate_val = str(row["Rate"]).strip().lower()
         try:
@@ -63,7 +63,7 @@ if uploaded_file:
         except:
             return row["Value of Sales Excluding Sales Tax"]
 
-        if rate_val in ["exempt", "0", "0.0"]:
+        if rate_val in ["exempt", "0", "0.0", "0%"]:
             factor = 1 + np.random.uniform(0.05, 0.10)  # random 5–10%
             return int(round(original_val * factor, 0))
         else:
