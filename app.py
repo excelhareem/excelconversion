@@ -92,7 +92,7 @@ if uploaded_file:
         df["Taxpayer Type"] = "Unregistered"
 
         # --- Adjust values row-by-row ---
-        new_values, new_extra, new_further = [], [], []
+        new_values, new_fixed, new_tax, new_extra, new_further = [], [], [], [], []
 
         for _, row in df.iterrows():
             val = _num(row.get("Value of Sales Excluding Sales Tax"))
@@ -102,34 +102,46 @@ if uploaded_file:
             extra_tax = _num(row.get("Extra Tax"))
             further_tax = _num(row.get("Further Tax"))
 
-            # Step 1: base value priority for 3rd schedule
-            if sale_type == "3rd schedule goods" and fixed_val > 0:
-                base_value = fixed_val
-            else:
-                base_value = val
-
+            base_value = val
             new_val = base_value
+            new_fixed_val = fixed_val
+            new_tax_val = _int_safe(val * rate / 100 if rate > 0 else 0)
             ratio = 1.0
 
-            # Step 2: rules
             rate_str = str(row.get("Rate", "")).strip().lower()
 
-            if rate_str in ["exempt", "0", "0.0", "0%"]:
+            # --- Case 1: 3rd Schedule Goods ---
+            if sale_type == "3rd schedule goods" and fixed_val > 0:
+                base_value = fixed_val
+                if rate > 0:
+                    new_val, ratio = _find_integer_tax_value(base_value, rate, 0.005, 0.03)
+                else:
+                    new_val, ratio = base_value, 1.0
+
+                new_fixed_val = new_val
+                new_tax_val = _int_safe(new_val * rate / 100 if rate > 0 else 0)
+
+            # --- Case 2: Exempt / 0% ---
+            elif rate_str in ["exempt", "0", "0.0", "0%"]:
                 if base_value > 0:
                     new_val, ratio = _find_integer_tax_value(base_value, 0, 0.05, 0.10)
 
-            elif sale_type == "3rd schedule goods":
-                if base_value > 0 and rate > 0:
-                    new_val, ratio = _find_integer_tax_value(base_value, rate, 0.005, 0.03)
-
+            # --- Case 3: Other taxable ---
             elif base_value > 0 and rate > 0:
                 new_val, ratio = _find_integer_tax_value(base_value, rate, 0.001, 0.03)
+                new_tax_val = _int_safe(new_val * rate / 100)
 
+            # --- Save row results ---
             new_values.append(_int_safe(new_val))
+            new_fixed.append(_int_safe(new_fixed_val))
+            new_tax.append(new_tax_val)
             new_extra.append(_int_safe(extra_tax * ratio) if extra_tax else 0)
             new_further.append(_int_safe(further_tax * ratio) if further_tax else 0)
 
+        # --- Save results back ---
         df["Value of Sales Excluding Sales Tax"] = new_values
+        df["Fixed / notified value or Retail Price / Toll Charges"] = new_fixed
+        df["Sales Tax/ FED in ST Mode"] = new_tax
         df["Extra Tax"] = new_extra
         df["Further Tax"] = new_further
 
