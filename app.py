@@ -13,7 +13,6 @@ hide_style = """
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
-    .stStatusWidget {display: none;}
     </style>
 """
 st.markdown(hide_style, unsafe_allow_html=True)
@@ -21,14 +20,23 @@ st.markdown(hide_style, unsafe_allow_html=True)
 uploaded_file = st.file_uploader("Upload Purchase Invoice (Excel)", type=["xlsx", "xls"])
 
 # ---------- Helper Functions ----------
-def _num(x, default=None):
+def _num(x, default=0.0):
+    """Convert to float safely, NaN/None → default"""
     try:
+        if pd.isna(x):
+            return default
         return float(str(x).replace(",", "").strip())
     except:
         return default
 
 def _int_safe(x):
-    return int(round(float(x))) if x is not None else 0
+    """Convert to int safely, NaN/None → 0"""
+    try:
+        if x is None or pd.isna(x):
+            return 0
+        return int(round(float(x)))
+    except:
+        return 0
 
 def _integer_tax_step(rate_percent_float: float) -> int:
     r_int = int(round(rate_percent_float))
@@ -37,9 +45,8 @@ def _integer_tax_step(rate_percent_float: float) -> int:
     return 100 // gcd(100, r_int)
 
 def _find_integer_tax_value(base_value: float, rate: float, min_pct: float, max_pct: float):
-    """Find nearest integer-increased value that keeps tax integer."""
     if base_value is None or base_value <= 0:
-        return base_value, 1.0
+        return 0, 1.0
 
     step = _integer_tax_step(rate)
     lo = math.ceil(base_value * (1.0 + min_pct))
@@ -70,7 +77,7 @@ if uploaded_file:
             "Total Value of Sales."
         ]
 
-        # Add Invoice numbers
+        # Generate Invoice numbers
         df["Invoice Ref No."] = [f"17022025{str(i).zfill(3)}" for i in range(1, len(df) + 1)]
         df["Invoice No."] = [f"zs333{str(i).zfill(3)}" for i in range(1, len(df) + 1)]
         df["Invoice Type"] = "Sale Invoice"
@@ -101,20 +108,20 @@ if uploaded_file:
 
             # Case 1: Exempt or 0%
             if str(row.get("Rate")).strip().lower() in ["exempt", "0", "0.0", "0%"]:
-                if val:
+                if val > 0:
                     new_val, ratio = _find_integer_tax_value(val, 0, 0.05, 0.10)
 
             # Case 2: 3rd Schedule
             elif "3rd schedule" in sale_type:
-                if val and rate:
+                if val > 0 and rate > 0:
                     new_val, ratio = _find_integer_tax_value(val, rate, 0.005, 0.03)
 
             # Case 3: Fixed Value exists
-            elif fixed_val:
+            elif fixed_val > 0:
                 new_val, ratio = _find_integer_tax_value(fixed_val, rate or 1, 0.001, 0.02)
 
             # Case 4: General taxable
-            elif val and rate:
+            elif val > 0 and rate > 0:
                 new_val, ratio = _find_integer_tax_value(val, rate, 0.001, 0.02)
 
             new_values.append(_int_safe(new_val))
