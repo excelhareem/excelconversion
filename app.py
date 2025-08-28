@@ -23,6 +23,18 @@ if uploaded_file:
         "Fixed / notified value or Retail Price / Toll Charges",
         "Total Value of Sales."
     ]
+import streamlit as st
+
+hide_footer_style = """
+    <style>
+    #MainMenu {visibility: hidden;}     /* Hide hamburger menu */
+    footer {visibility: hidden;}        /* Hide footer ("Hosted with Streamlit") */
+    header {visibility: hidden;}        /* Hide Streamlit header */
+    .stStatusWidget {display: none;}    /* Hide bottom-right running status */
+    </style>
+"""
+
+st.markdown(hide_footer_style, unsafe_allow_html=True)
 
     # 1. Invoice Ref No. → month-like code + unique digits
     df["Invoice Ref No."] = [
