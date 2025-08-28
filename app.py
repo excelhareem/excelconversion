@@ -20,7 +20,6 @@ uploaded_file = st.file_uploader("Upload Purchase Invoice (Excel)", type=["xlsx"
 
 # -------------- Helpers --------------
 def _num(x, default=0.0):
-    """Safe numeric parser: strips commas, %, spaces. NaN/None -> default."""
     try:
         if x is None or (isinstance(x, float) and pd.isna(x)):
             return default
@@ -32,7 +31,6 @@ def _num(x, default=0.0):
         return default
 
 def _int_safe(x):
-    """Round to nearest int; None/NaN -> 0."""
     try:
         if x is None or (isinstance(x, float) and pd.isna(x)):
             return 0
@@ -41,14 +39,12 @@ def _int_safe(x):
         return 0
 
 def _integer_tax_step(rate_percent_float: float) -> int:
-    """Smallest integer 'step' so that (value * rate/100) is an integer."""
     r_int = int(round(rate_percent_float))
     if r_int <= 0:
         return 1
     return 100 // gcd(100, r_int)
 
 def _find_integer_tax_value(base_value: float, rate: float, min_pct: float, max_pct: float):
-    """Increase base_value within [min_pct, max_pct] so adjusted tax is integer."""
     if base_value is None or base_value <= 0:
         return 0, 1.0
     step = _integer_tax_step(rate)
@@ -106,12 +102,16 @@ if uploaded_file:
             extra_tax = _num(row.get("Extra Tax"))
             further_tax = _num(row.get("Further Tax"))
 
-            # --- Step 1: decide base value ---
-            base_value = fixed_val if fixed_val > 0 else val
+            # Step 1: base value priority for 3rd schedule
+            if sale_type == "3rd schedule goods" and fixed_val > 0:
+                base_value = fixed_val
+            else:
+                base_value = val
+
             new_val = base_value
             ratio = 1.0
 
-            # --- Step 2: apply rules ---
+            # Step 2: rules
             rate_str = str(row.get("Rate", "")).strip().lower()
 
             if rate_str in ["exempt", "0", "0.0", "0%"]:
@@ -125,7 +125,6 @@ if uploaded_file:
             elif base_value > 0 and rate > 0:
                 new_val, ratio = _find_integer_tax_value(base_value, rate, 0.001, 0.03)
 
-            # --- Step 3: save results ---
             new_values.append(_int_safe(new_val))
             new_extra.append(_int_safe(extra_tax * ratio) if extra_tax else 0)
             new_further.append(_int_safe(further_tax * ratio) if further_tax else 0)
